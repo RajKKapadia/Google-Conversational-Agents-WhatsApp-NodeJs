@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { verifyRequestSignature } from '../utils/security';
+import { logger } from '../utils/logger';
 import {
   handleTextMessage,
   handleAudioMessage,
@@ -25,11 +26,11 @@ export function verifyWebhook(req: Request, res: Response): void {
       token === process.env.WEBHOOK_VERIFICATION_TOKEN
     ) {
       // Respond with 200 OK and challenge token from the request
-      console.log('Webhook verified successfully!');
+      logger.info('Webhook verified successfully');
       res.status(200).send(challenge);
     } else {
       // Responds with '403 Forbidden' if verify tokens do not match
-      console.log('Webhook verification failed!');
+      logger.warn('Webhook verification failed');
       res.sendStatus(403);
     }
   } else {
@@ -47,12 +48,15 @@ export function handleWebhook(req: Request, res: Response): void {
 
   // Verify that the request is from Meta
   if (!verifyRequestSignature(req)) {
-    console.log('Unauthorized request - signature verification failed');
+    logger.warn('Unauthorized request', { reason: 'signature_verification_failed' });
     res.sendStatus(401);
     return;
   }
 
-  console.log('Incoming webhook message:', JSON.stringify(body, null, 2));
+  logger.info('Incoming webhook event', {
+    object: body?.object,
+    entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+  });
 
   // Check if this is an event from a WhatsApp page subscription
   if (body.object === 'whatsapp_business_account') {
@@ -69,7 +73,7 @@ export function handleWebhook(req: Request, res: Response): void {
           const messages = value.messages;
 
           messages.forEach(async (message: any) => {
-            console.log('Message received:', {
+            logger.info('Message received', {
               from: message.from,
               messageId: message.id,
               timestamp: message.timestamp,
@@ -131,22 +135,28 @@ export function handleWebhook(req: Request, res: Response): void {
                   break;
 
                 default:
-                  console.log(`Unsupported message type: ${messageType}`);
+                  logger.warn('Unsupported message type', { messageType });
                   replyText = `Sorry, I cannot process ${messageType} messages yet.`;
               }
 
-              console.log(`Generated reply for ${from}: ${replyText}`);
+              logger.info('Generated reply', { from, messageId, messageType });
 
               // TODO: Send the reply back to WhatsApp using the Graph API
               // You'll need to implement sendWhatsAppMessage() function
             } catch (error) {
-              console.error('Error processing message:', error);
+              logger.error('Error processing message', error, {
+                from,
+                messageId,
+                messageType,
+              });
             }
           });
         }
 
         if (value.statuses) {
-          console.log('Message status update:', value.statuses);
+          logger.info('Message status update', {
+            statusCount: Array.isArray(value.statuses) ? value.statuses.length : 0,
+          });
         }
       });
     });

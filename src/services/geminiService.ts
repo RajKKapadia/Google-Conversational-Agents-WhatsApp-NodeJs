@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../utils/logger';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -33,7 +34,7 @@ export async function analyzeImage(
 
     return text;
   } catch (error) {
-    console.error('Error analyzing image with Gemini:', error);
+    logger.error('Error analyzing image with Gemini', error);
     throw new Error('Failed to analyze image');
   }
 }
@@ -72,7 +73,7 @@ export async function analyzeDocument(
 
     return text;
   } catch (error) {
-    console.error('Error analyzing document with Gemini:', error);
+    logger.error('Error analyzing document with Gemini', error, { filename });
     throw new Error('Failed to analyze document');
   }
 }
@@ -108,7 +109,7 @@ export async function analyzeAudio(
 
     return text;
   } catch (error) {
-    console.error('Error analyzing audio with Gemini:', error);
+    logger.error('Error analyzing audio with Gemini', error);
     throw new Error('Failed to analyze audio');
   }
 }
@@ -128,7 +129,7 @@ export async function processTextMessage(text: string): Promise<string> {
 
     return responseText;
   } catch (error) {
-    console.error('Error processing text with Gemini:', error);
+    logger.error('Error processing text with Gemini', error);
     throw new Error('Failed to process text message');
   }
 }

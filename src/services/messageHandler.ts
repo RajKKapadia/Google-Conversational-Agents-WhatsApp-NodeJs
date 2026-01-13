@@ -5,6 +5,7 @@ import {
 } from './geminiService';
 import { downloadMedia, sendTextMessage } from './whatsappService';
 import { detectIntent } from './conversationalAgentService';
+import { logger } from '../utils/logger';
 
 /**
  * Handles incoming text messages
@@ -18,7 +19,7 @@ export async function handleTextMessage(
   _messageId: string,
   text: string
 ): Promise<string> {
-  console.log(`Processing text message from ${from}: "${text}"`);
+  logger.info('Processing text message', { from });
 
   try {
     // Send text directly to Conversational Agent
@@ -29,7 +30,7 @@ export async function handleTextMessage(
 
     return response;
   } catch (error) {
-    console.error('Error processing text message:', error);
+    logger.error('Error processing text message', error, { from });
     const errorMessage = 'Sorry, I encountered an error processing your message.';
     await sendTextMessage(from, errorMessage);
     return errorMessage;
@@ -50,23 +51,22 @@ export async function handleAudioMessage(
   audioId: string,
   mimeType: string
 ): Promise<string> {
-  console.log(
-    `Processing audio message from ${from}, Audio ID: ${audioId}, MIME: ${mimeType}`
-  );
+  logger.info('Processing audio message', { from, audioId, mimeType });
 
   try {
     // Download audio from WhatsApp
     const { data: audioData, mimeType: downloadedMimeType } =
       await downloadMedia(audioId);
 
-    console.log(
-      `Downloaded audio: ${audioData.length} bytes, MIME: ${downloadedMimeType}`
-    );
+    logger.debug('Downloaded audio', {
+      sizeBytes: audioData.length,
+      mimeType: downloadedMimeType,
+    });
 
     // Analyze audio with Gemini to get transcription/summary
     const geminiAnalysis = await analyzeAudio(audioData, downloadedMimeType);
 
-    console.log(`Gemini audio analysis: ${geminiAnalysis}`);
+    logger.debug('Gemini audio analysis complete', { from });
 
     // Send the Gemini summary to Conversational Agent for intent detection
     const response = await detectIntent(geminiAnalysis, from);
@@ -76,7 +76,7 @@ export async function handleAudioMessage(
 
     return response;
   } catch (error) {
-    console.error('Error processing audio message:', error);
+    logger.error('Error processing audio message', error, { from, audioId });
     const errorMessage = 'Sorry, I encountered an error processing your audio message.';
     await sendTextMessage(from, errorMessage);
     return errorMessage;
@@ -97,17 +97,16 @@ export async function handleImageMessage(
   imageId: string,
   caption?: string
 ): Promise<string> {
-  console.log(
-    `Processing image message from ${from}, Image ID: ${imageId}, Caption: ${caption}`
-  );
+  logger.info('Processing image message', { from, imageId, caption });
 
   try {
     // Download image from WhatsApp
     const { data: imageData, mimeType } = await downloadMedia(imageId);
 
-    console.log(
-      `Downloaded image: ${imageData.length} bytes, MIME: ${mimeType}`
-    );
+    logger.debug('Downloaded image', {
+      sizeBytes: imageData.length,
+      mimeType,
+    });
 
     // Create prompt based on caption
     const prompt = caption
@@ -117,7 +116,7 @@ export async function handleImageMessage(
     // Analyze image with Gemini
     const geminiAnalysis = await analyzeImage(imageData, mimeType, prompt);
 
-    console.log(`Gemini image analysis: ${geminiAnalysis}`);
+    logger.debug('Gemini image analysis complete', { from });
 
     // Send the Gemini analysis to Conversational Agent for intent detection
     const response = await detectIntent(geminiAnalysis, from);
@@ -127,7 +126,7 @@ export async function handleImageMessage(
 
     return response;
   } catch (error) {
-    console.error('Error processing image message:', error);
+    logger.error('Error processing image message', error, { from, imageId });
     const errorMessage = 'Sorry, I encountered an error processing your image.';
     await sendTextMessage(from, errorMessage);
     return errorMessage;
@@ -150,18 +149,22 @@ export async function handleDocumentMessage(
   filename: string,
   mimeType: string
 ): Promise<string> {
-  console.log(
-    `Processing document from ${from}, Doc ID: ${documentId}, Filename: ${filename}, MIME: ${mimeType}`
-  );
+  logger.info('Processing document message', {
+    from,
+    documentId,
+    filename,
+    mimeType,
+  });
 
   try {
     // Download document from WhatsApp
     const { data: documentData, mimeType: downloadedMimeType } =
       await downloadMedia(documentId);
 
-    console.log(
-      `Downloaded document: ${documentData.length} bytes, MIME: ${downloadedMimeType}`
-    );
+    logger.debug('Downloaded document', {
+      sizeBytes: documentData.length,
+      mimeType: downloadedMimeType,
+    });
 
     // Analyze document with Gemini
     const geminiSummary = await analyzeDocument(
@@ -170,7 +173,7 @@ export async function handleDocumentMessage(
       filename
     );
 
-    console.log(`Gemini document summary: ${geminiSummary}`);
+    logger.debug('Gemini document analysis complete', { from });
 
     // Send the Gemini summary to Conversational Agent for intent detection
     const response = await detectIntent(geminiSummary, from);
@@ -180,7 +183,10 @@ export async function handleDocumentMessage(
 
     return response;
   } catch (error) {
-    console.error('Error processing document message:', error);
+    logger.error('Error processing document message', error, {
+      from,
+      documentId,
+    });
     const errorMessage = 'Sorry, I encountered an error processing your document.';
     await sendTextMessage(from, errorMessage);
     return errorMessage;
@@ -201,17 +207,16 @@ export async function handleVideoMessage(
   videoId: string,
   caption?: string
 ): Promise<string> {
-  console.log(
-    `Processing video message from ${from}, Video ID: ${videoId}, Caption: ${caption}`
-  );
+  logger.info('Processing video message', { from, videoId, caption });
 
   try {
     // Download video from WhatsApp
     const { data: videoData, mimeType } = await downloadMedia(videoId);
 
-    console.log(
-      `Downloaded video: ${videoData.length} bytes, MIME: ${mimeType}`
-    );
+    logger.debug('Downloaded video', {
+      sizeBytes: videoData.length,
+      mimeType,
+    });
 
     // Note: Gemini can analyze video files
     // We'll use the same approach as images but with video data
@@ -234,7 +239,7 @@ export async function handleVideoMessage(
     const result = await genModel.generateContent([prompt, videoPart]);
     const geminiAnalysis = result.response.text();
 
-    console.log(`Gemini video analysis: ${geminiAnalysis}`);
+    logger.debug('Gemini video analysis complete', { from });
 
     // Send the Gemini analysis to Conversational Agent for intent detection
     const response = await detectIntent(geminiAnalysis, from);
@@ -244,7 +249,7 @@ export async function handleVideoMessage(
 
     return response;
   } catch (error) {
-    console.error('Error processing video message:', error);
+    logger.error('Error processing video message', error, { from, videoId });
     const errorMessage = 'Sorry, I encountered an error processing your video.';
     await sendTextMessage(from, errorMessage);
     return errorMessage;

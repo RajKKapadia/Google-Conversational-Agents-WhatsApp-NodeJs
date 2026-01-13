@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from '../utils/logger';
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0';
 
@@ -42,7 +43,7 @@ export async function downloadMedia(
 
     return { data, mimeType };
   } catch (error) {
-    console.error('Error downloading media from WhatsApp:', error);
+    logger.error('Error downloading media from WhatsApp', error, { mediaId });
     throw new Error('Failed to download media');
   }
 }
@@ -82,9 +83,9 @@ export async function sendTextMessage(
       }
     );
 
-    console.log(`Message sent to ${to}: ${message}`);
+    logger.info('Message sent to WhatsApp', { to });
   } catch (error) {
-    console.error('Error sending message via WhatsApp:', error);
+    logger.error('Error sending message via WhatsApp', error, { to });
     throw new Error('Failed to send message');
   }
 }

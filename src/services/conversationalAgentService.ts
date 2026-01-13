@@ -3,6 +3,7 @@ import {
   getServiceAccountCredentials,
   getConversationalAgentConfig,
 } from '../utils/config';
+import { logger } from '../utils/logger';
 
 /**
  * Creates a session ID from mobile number
@@ -50,9 +51,10 @@ export async function detectIntent(
       sessionId
     );
 
-    console.log(`Sending query to Conversational Agent: "${query}"`);
-    console.log(`Session ID: ${sessionId}`);
-    console.log(`Session path: ${sessionPath}`);
+    logger.info('Sending query to Conversational Agent', {
+      sessionId,
+      sessionPath,
+    });
 
     // Prepare the request
     const request = {
@@ -68,7 +70,7 @@ export async function detectIntent(
     // Send request to Dialogflow CX
     const [response] = await client.detectIntent(request);
 
-    console.log('Received response from Conversational Agent');
+    logger.info('Received response from Conversational Agent', { sessionId });
 
     // Extract response messages
     const responseMessages = response.queryResult?.responseMessages || [];
@@ -81,23 +83,23 @@ export async function detectIntent(
       .join('\n');
 
     if (!responseText) {
-      console.warn('No text response from agent, using fallback');
+      logger.warn('No text response from agent, using fallback', { sessionId });
       return "I'm sorry, I didn't understand that. Could you please rephrase?";
     }
 
     // Log detected intent for debugging
     if (response.queryResult?.intent) {
-      console.log(
-        `Detected intent: ${response.queryResult.intent.displayName}`
-      );
-      console.log(
-        `Intent confidence: ${response.queryResult.intentDetectionConfidence}`
-      );
+      logger.info('Detected intent', {
+        displayName: response.queryResult.intent.displayName,
+        confidence: response.queryResult.intentDetectionConfidence,
+      });
     }
 
     return responseText;
   } catch (error) {
-    console.error('Error detecting intent with Conversational Agent:', error);
+    logger.error('Error detecting intent with Conversational Agent', error, {
+      sessionId: createSessionId(mobileNumber),
+    });
     throw new Error('Failed to get response from Conversational Agent');
   }
 }
@@ -136,8 +138,9 @@ export async function detectIntentWithParameters(
       sessionId
     );
 
-    console.log(`Sending query with parameters to Conversational Agent: "${query}"`);
-    console.log(`Session ID: ${sessionId}`);
+    logger.info('Sending query with parameters to Conversational Agent', {
+      sessionId,
+    });
 
     const request: any = {
       session: sessionPath,
@@ -170,9 +173,10 @@ export async function detectIntentWithParameters(
       "I'm sorry, I didn't understand that. Could you please rephrase?"
     );
   } catch (error) {
-    console.error(
-      'Error detecting intent with parameters from Conversational Agent:',
-      error
+    logger.error(
+      'Error detecting intent with parameters from Conversational Agent',
+      error,
+      { sessionId: createSessionId(mobileNumber) }
     );
     throw new Error('Failed to get response from Conversational Agent');
   }

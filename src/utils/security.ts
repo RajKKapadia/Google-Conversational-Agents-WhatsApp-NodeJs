@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Request } from 'express';
+import { logger } from './logger';
 
 /**
  * Verifies that the webhook request is from Meta using HMAC SHA-256 signature
@@ -7,36 +8,51 @@ import { Request } from 'express';
  * @returns boolean indicating if signature is valid
  */
 export function verifyRequestSignature(req: Request): boolean {
-  const signature = req.headers['x-hub-signature-256'] as string;
+  const signatureHeader = req.headers['x-hub-signature-256'];
+  const signature =
+    typeof signatureHeader === 'string' ? signatureHeader : undefined;
 
   if (!signature) {
-    console.log('No signature found in request headers');
+    logger.warn('No signature found in request headers');
     return false;
   }
 
   const appSecret = process.env.APP_SECRET;
   if (!appSecret) {
-    console.log('APP_SECRET not configured');
+    logger.warn('APP_SECRET not configured');
+    return false;
+  }
+
+  if (!signature.startsWith('sha256=')) {
+    logger.warn('Invalid signature format');
     return false;
   }
 
   // Extract the signature hash (remove 'sha256=' prefix)
-  const signatureHash = signature.split('sha256=')[1];
+  const signatureHash = signature.slice('sha256='.length);
+  if (!signatureHash) {
+    logger.warn('Signature hash missing from header');
+    return false;
+  }
+
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+  const payload = rawBody ?? Buffer.from(JSON.stringify(req.body));
 
   // Calculate expected signature
   const expectedHash = crypto
     .createHmac('sha256', appSecret)
-    .update(JSON.stringify(req.body))
+    .update(payload)
     .digest('hex');
 
   // Compare signatures using timing-safe comparison
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(signatureHash, 'hex'),
-    Buffer.from(expectedHash, 'hex')
-  );
+  const signatureBuffer = Buffer.from(signatureHash, 'hex');
+  const expectedBuffer = Buffer.from(expectedHash, 'hex');
+  const isValid =
+    signatureBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 
   if (!isValid) {
-    console.log('Signature verification failed');
+    logger.warn('Signature verification failed');
   }
 
   return isValid;
