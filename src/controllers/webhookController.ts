@@ -8,6 +8,7 @@ import {
   handleDocumentMessage,
   handleVideoMessage,
 } from '../services/messageHandler';
+import { sendTextMessage } from '../services/whatsappService';
 
 /**
  * Handles webhook verification from Meta
@@ -84,13 +85,11 @@ export function handleWebhook(req: Request, res: Response): void {
             const messageId = message.id;
             const messageType = message.type;
 
-            let replyText: string;
-
             try {
               // Route message based on type
               switch (messageType) {
                 case 'text':
-                  replyText = await handleTextMessage(
+                  await handleTextMessage(
                     from,
                     messageId,
                     message.text.body
@@ -98,7 +97,7 @@ export function handleWebhook(req: Request, res: Response): void {
                   break;
 
                 case 'audio':
-                  replyText = await handleAudioMessage(
+                  await handleAudioMessage(
                     from,
                     messageId,
                     message.audio.id,
@@ -107,7 +106,7 @@ export function handleWebhook(req: Request, res: Response): void {
                   break;
 
                 case 'image':
-                  replyText = await handleImageMessage(
+                  await handleImageMessage(
                     from,
                     messageId,
                     message.image.id,
@@ -116,7 +115,7 @@ export function handleWebhook(req: Request, res: Response): void {
                   break;
 
                 case 'document':
-                  replyText = await handleDocumentMessage(
+                  await handleDocumentMessage(
                     from,
                     messageId,
                     message.document.id,
@@ -126,7 +125,7 @@ export function handleWebhook(req: Request, res: Response): void {
                   break;
 
                 case 'video':
-                  replyText = await handleVideoMessage(
+                  await handleVideoMessage(
                     from,
                     messageId,
                     message.video.id,
@@ -136,7 +135,8 @@ export function handleWebhook(req: Request, res: Response): void {
 
                 default:
                   logger.warn('Unsupported message type', { messageType });
-                  replyText = `Sorry, I cannot process ${messageType} messages yet.`;
+                  const replyText = `Sorry, I cannot process ${messageType} messages yet.`;
+                  await sendTextMessage(from, replyText)
               }
 
               logger.info('Generated reply', { from, messageId, messageType });
